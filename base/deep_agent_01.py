@@ -10,11 +10,13 @@ _ = load_dotenv(find_dotenv())
 model = ChatDeepSeek(
     model="deepseek-v4-flash",
     reasoning_effort="high",
-    extra_body={"thinking": {"type": "enabled"}},
+    extra_body={"thinking": {"type": "disabled"}},
 )
 
 research_subagent: SubAgent = {
     "name": "web-researcher",
+    "model": "google_genai:gemini-3.5-flash-lite",
+    "tools": [gemini_web_search],
     "description": (
         "Answers questions that need current or external information by searching the "
         "web with Gemini. Delegate one self-contained research question at a time."
@@ -26,8 +28,7 @@ research_subagent: SubAgent = {
         "- Search again when the first result is incomplete or contradictory.\n"
         "- Report only what the search results support; say so when something is unknown.\n"
         "- Finish with a short answer followed by the source URLs you relied on."
-    ),
-    "tools": [gemini_web_search],
+    )
 }
 
 agent = create_deep_agent(
@@ -44,7 +45,7 @@ agent = create_deep_agent(
 
 def main():
     result = agent.invoke(
-        {"messages": [{"role": "user", "content": "Do a sentiment analysis of the recent $AAOI earning call"}]}
+        {"messages": [{"role": "user", "content": "Report top 3 stock market news in the US"}]}
     )
     print(result["messages"][-1].content)
 
