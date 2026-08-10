@@ -2,6 +2,7 @@ from deepagents import SubAgent, create_deep_agent
 from dotenv import find_dotenv, load_dotenv
 from langchain_deepseek import ChatDeepSeek
 
+from clock import get_current_time
 from gemini import gemini_web_search
 
 _ = load_dotenv(find_dotenv())
@@ -16,7 +17,7 @@ model = ChatDeepSeek(
 research_subagent: SubAgent = {
     "name": "web-researcher",
     "model": "google_genai:gemini-3.6-flash",
-    "tools": [gemini_web_search],
+    "tools": [gemini_web_search, get_current_time],
     "description": (
         "Answers questions that need current or external information by searching the "
         "web with Gemini. Delegate one self-contained research question at a time."
@@ -24,6 +25,8 @@ research_subagent: SubAgent = {
     "system_prompt": (
         "You are a web researcher. Use the `gemini_web_search` tool to answer the "
         "question you were given.\n\n"
+        "- Call `get_current_time` first when the question involves recency, and put the "
+        "real current date into your search queries instead of guessing it.\n"
         "- Break a broad question into several focused searches rather than one vague one.\n"
         "- Search again when the first result is incomplete or contradictory.\n"
         "- Report only what the search results support; say so when something is unknown.\n"
@@ -37,8 +40,13 @@ agent = create_deep_agent(
         "You are a research assistant. You have no web access yourself: delegate any "
         "question about current events, prices, companies, or anything else you cannot "
         "answer from memory to the `web-researcher` subagent via the `task` tool. "
-        "Then synthesize its findings into a direct answer and keep the sources."
+        "Then synthesize its findings into a direct answer and keep the sources.\n\n"
+        "Your training data is stale, so never assume you know today's date. Call "
+        "`get_current_time` whenever the request mentions 'latest', 'recent', 'today', "
+        "'current', or any other relative date, and pass the actual date into the "
+        "research task you delegate so the subagent searches for the right day."
     ),
+    tools=[get_current_time],
     subagents=[research_subagent],
 )
 
@@ -47,7 +55,8 @@ def main():
     result = agent.invoke(
         {"messages": [{"role": "user", "content": "Report top 3 stock market news in the US"}]}
     )
-    print(result["messages"][-1].content)
+    for message in result["messages"]:
+        message.pretty_print()
 
 
 if __name__ == "__main__":
