@@ -15,7 +15,7 @@ model = ChatDeepSeek(
 
 research_subagent: SubAgent = {
     "name": "web-researcher",
-    "model": "google_genai:gemini-3.5-flash-lite",
+    "model": "google_genai:gemini-3.6-flash",
     "tools": [gemini_web_search],
     "description": (
         "Answers questions that need current or external information by searching the "
