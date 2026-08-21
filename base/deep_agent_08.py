@@ -1,5 +1,6 @@
 import os
 import select
+from unittest import result
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_deepseek import ChatDeepSeek
 from langchain.tools import tool
@@ -61,29 +62,60 @@ main_agent = create_deep_agent(
     },
 )
 
-# result_1 = main_agent.invoke({
-#     "messages": [
-#         {"role": "user", "content": "First query the product table data! Then delete the user table, and finally delete the zhaoweifeng.txt file"}]
-# }, config=thread_config)
-for chunk in main_agent.stream(
-    {
-        "messages": [
-            {
-                "role": "user",
-                "content": "First query the product table data! Then delete the user table, and finally delete the zhaoweifeng.txt file",
+result_1 = main_agent.invoke({
+    "messages": [
+        HumanMessage(content="First query the product table data! Then delete the user table, and finally delete the zhaoweifeng.txt file")
+    ]
+}, config=thread_config)
+# for chunk in main_agent.stream(
+#     {
+#         "messages": [
+#             {
+#                 "role": "user",
+#                 "content": "First query the product table data! Then delete the user table, and finally delete the zhaoweifeng.txt file",
+#             }
+#         ]
+#     },
+#     config=thread_config,
+# ):
+#     if not isinstance(chunk, dict):
+#         continue
+#     if "__interrupt__" in chunk:
+#         print(chunk["__interrupt__"])
+#         continue
+#     for state in chunk.values():
+#         if not isinstance(state, dict):
+#             continue
+#         for msg in state.get("messages") or []:
+#             if isinstance(msg, (AIMessage, HumanMessage, ToolMessage)):
+#                 msg.pretty_print()
+
+interrupt = result_1['__interrupt__']
+
+if interrupt:
+    action_requests = interrupt[0].value['action_requests']
+    print(f"Tools Require Review: {len(action_requests)}, they are: {[action['name'] for action in action_requests]}")
+
+    decisions = []
+    for action in action_requests:
+        action_name = action['name']
+        action_args = action['args']
+
+        if action_name == "delete_database":
+            decisions.append({"type": "reject"})
+        elif action_name == "delete_file":
+            decisions.append({"type": "approve"})
+
+    
+    result_2 = main_agent.invoke(
+        Command(
+            resume={
+                "decisions": decisions
             }
-        ]
-    },
-    config=thread_config,
-):
-    if not isinstance(chunk, dict):
-        continue
-    if "__interrupt__" in chunk:
-        print(chunk["__interrupt__"])
-        continue
-    for state in chunk.values():
-        if not isinstance(state, dict):
-            continue
-        for msg in state.get("messages") or []:
-            if isinstance(msg, (AIMessage, HumanMessage, ToolMessage)):
-                msg.pretty_print()
+        ), 
+        config=thread_config
+    )
+
+    for msg in result_2.get("messages") or []:
+        if isinstance(msg, (AIMessage, HumanMessage, ToolMessage)):
+            msg.pretty_print()
